@@ -66,3 +66,26 @@ void answerUser(pid_t pid, char answer)
         users[index].lastAnswer = answer;
     }
 }
+
+// Ajoute un point au score d'un utilisateur
+void addPoint(pid_t pid)
+{
+    int index = getUserIndex(pid);
+    if(index != -1)
+    {
+        users[index].score++;
+    }
+}
+
+// Affiche les scores des utilisateurs
+void displayScores()
+{
+    printf("\n\n/== Scores ==/\n\n");
+    for(int i = 0; i < MAX_USERS; i++)
+    {
+        if(users[i].pid != -1)
+        {
+            printf("Utilisateur %d : %c [score = %d]\n", users[i].pid, users[i].lastAnswer, users[i].score);
+        }
+    }
+}

@@ -19,5 +19,7 @@ int getUserIndex(pid_t pid);
 void connectUser(pid_t pid);
 void disconnectUser(pid_t pid);
 void answerUser(pid_t pid, char answer);
+void displayScores();
+void addPoint(pid_t pid);
 
 #endif

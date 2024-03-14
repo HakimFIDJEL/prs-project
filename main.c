@@ -1,21 +1,7 @@
 // Prs project
 
 // Objectif : Clone Kahoot
-
-// On lance le processus père qui va gérer les questions et réponses
-// Les étudiants peuvent faire trois choses : grâce à des signaux envoyés au processus père
-// - Se connecter       
-// - Répondre à une question
-// - Quitter
-
-// Le père crée des processus fils par questions, le processus fils affiche la question et attend les réponses des étudiants
-// Le processus père a une variable qui stocke le nombre de connecté, il sait donc combien de réponses il doit attendre
-// Le processus père a une structure de données qui stocke les pid des étudiants connectés et leur réponse, il sait donc qui a répondu et quoi
-// Le processus père a un timer qui permet de limiter le temps de réponse
-
-
-// TODO : 
-// Utiliser les sémaphores pour gérer le nombre de places restantes dans le tableau des utilisateurs, le remplir lorsque la partie commence
+// Auteurs : FIDJEL Hakim & BOUGHRIET Younes 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,9 +10,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <string.h>
+#include <semaphore.h>
 
 #include "./lib/quiz.h"
 #include "./lib/user.h"
+#include "./lib/sem.h"
 
 #define SIG_CONNEXION SIGUSR1
 #define SIG_DECONNEXION SIGUSR2
@@ -37,12 +26,17 @@
 
 
 
-
 struct itimerval timer;
-int nbrUser = 0;
+int nbrUser   = 0;
+int nbrAnswer = 0;
+int currentQuestion = 0;
+bool answered = false;
+char answer;
+sem_t game;
 
 // Fonctions
 void signal_handler(int sig, siginfo_t *siginfo, void *context);
+void Kahoot(int nbrUser);
 
 
 
@@ -50,8 +44,10 @@ int main(void)
 {
     initUsers();
     initQuestions();
+    initUserSemaphores();
 
     struct sigaction act;
+    memset(&act, 0, sizeof(act));
     act.sa_sigaction = &signal_handler;
     act.sa_flags = SA_SIGINFO;
 
@@ -65,8 +61,8 @@ int main(void)
 
 
     int pid = getpid();
-    printf("/======= Bienvenue sur le serveur Kahoot =======/\n");
-    printf("Processus ID : %d\n\n", pid);
+    printf("\n\n/======= Bienvenue sur le serveur Kahoot =======/\n");
+    printf("Processus ID : %d [pour les signaux]\n\n", pid);
     printf("Commandes disponibles : \n");
     printf("- Connexion : SIGUSR1\n");
     printf("- Déconnexion : SIGUSR2\n");
@@ -81,8 +77,6 @@ int main(void)
         pause();
     }
 
-    printf("Fermeture du processus\n");
-
     return 0;
 }
 
@@ -91,7 +85,9 @@ void signal_handler(int sig, siginfo_t *siginfo, void *context) {
     // Gestion de la fermeture du processus
     if(siginfo->si_pid == 0 && sig != SIGALRM)
     {
-        printf("\n\nFermeture du processus\n");
+        printf("\n\n/======= Fermeture du serveur Kahoot =======/\n\n")
+
+        destroyUserSemaphores();
         exit(0);
     }
 
@@ -105,23 +101,17 @@ void signal_handler(int sig, siginfo_t *siginfo, void *context) {
 
             printf("%d Utilisateur(s) connecté(s)\n", nbrUser);
 
-            // On lance le timer de notre partie
             if(nbrUser == 1)
             {
-                
-
                 timer.it_value.tv_sec = CONNECTION_TIMER;
                 timer.it_value.tv_usec = 0;
 
                 timer.it_interval.tv_sec = 0;
                 timer.it_interval.tv_usec = 0;
 
-                setitimer(ITIMER_REAL, &timer, NULL);
-
                 printf("\n\n/== La partie commence dans %d secondes ==/\n\n", CONNECTION_TIMER);
                 
-
-                
+                setitimer(ITIMER_REAL, &timer, NULL);
             }
         }  
     }
@@ -132,24 +122,44 @@ void signal_handler(int sig, siginfo_t *siginfo, void *context) {
     }
     else 
     {
+        // Ajouter une vérification si l'utilisateur a déjà répondu, sémaphore ?
+        
         switch(sig) 
         {
             case SIG_REPONSE_A:
-                answerUser(siginfo->si_pid, 'A');
-                printf("Réponse A\n");
+
+                answered = true;
+                answer = 'A';
                 
+               
+
+                nbrAnswer++;
+
+                printf("Le processus %ld a répondu la réponse A\n", (long)siginfo->si_pid);
             break;
             case SIG_REPONSE_B:
-                answerUser(siginfo->si_pid, 'B');
-                printf("Réponse B\n");
+                
+                answered = true;
+                answer = 'B';
+
+                nbrAnswer++;
+                printf("Le processus %ld a répondu la réponse B\n", (long)siginfo->si_pid);
             break;
             case SIG_REPONSE_C:
-                answerUser(siginfo->si_pid, 'C');
-                printf("Réponse C\n");
+                
+                answered = true;
+                answer = 'C';
+
+                nbrAnswer++;
+                printf("Le processus %ld a répondu la réponse C\n", (long)siginfo->si_pid);
             break;
             case SIG_REPONSE_D:
-                answerUser(siginfo->si_pid, 'D');
-                printf("Réponse D\n");
+                
+                answered = true;
+                answer = 'D';
+
+                nbrAnswer++;
+                printf("Le processus %ld a répondu la réponse D\n", (long)siginfo->si_pid);
             break;
             case SIGALRM : 
                 Kahoot(nbrUser);
@@ -158,7 +168,65 @@ void signal_handler(int sig, siginfo_t *siginfo, void *context) {
                 printf("Signal inconnu envoyé par le processus %ld\n", (long)siginfo->si_pid);
             break;
         }
+
+        if(answer)
+        {
+            answered = false;
+
+            // On bloque le sémaphore de l'utilisateur
+            lockUserSemaphore(getUserIndex(siginfo->si_pid));
+
+            // On définit sa réponse
+            answerUser(siginfo->si_pid, answer);
+
+            // On vérifie si la réponse est correcte
+            if(checkAnswer(currentQuestion, answer))
+            {addPoint(siginfo->si_pid);}
+        }
+        
+        
     }
 }
 
 
+void Kahoot(int nbrUser)
+{
+    printf("\n\n/== La partie commence ==/\n\n");
+    for(int i = 0; i < MAX_QUESTIONS; i++)
+    {
+        printf("/== Question %d ==/\n", i+1);
+        nbrAnswer = 0;
+        
+        // Si on est le fils on affiche la question
+        pid_t pid = fork();
+        if(pid == 0)
+        {
+            displayQuestion(i);
+            exit(0);
+        }
+        else
+        {
+            // Si on est le père, on attend soit la fin du timer du fils, soit que tous les utilisateurs aient répondu
+            int status;
+            do
+            {
+                waitpid(pid, &status, 0);
+                sleep(1);
+            } while((!WIFEXITED(status) || WIFSIGNALED(status)) && nbrAnswer < nbrUser);
+
+            if(nbrAnswer < nbrUser)
+            {
+                printf("\n\n/== Temps écoulé ==/\n\n");
+            }
+        }
+
+        printf("\n /== %d utilisateurs ont répondu à la question ==/\n", nbrAnswer);
+
+        displayScores();
+        unlockUserSemaphores();
+
+        currentQuestion++;
+    }
+
+    printf("\n\n/== La partie est terminée ==/\n\n");
+}

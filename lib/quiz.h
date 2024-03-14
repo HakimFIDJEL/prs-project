@@ -18,7 +18,6 @@ typedef struct {
 void initQuestions(void);
 void displayQuestion(int questionIndex);
 int checkAnswer(int questionIndex, char userAnswer);
-void Kahoot(int nbrUser);
 
 
 
