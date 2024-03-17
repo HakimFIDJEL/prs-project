@@ -7,6 +7,31 @@
 #define MAX_USERS 10
 
 sem_t userSemaphores[MAX_USERS];
+sem_t game;
+
+// Initialise le sémaphore de jeu
+void initGameSemaphore() 
+{
+    sem_init(&game, 0, 1);
+}
+
+// Bloque le sémaphore de jeu
+void lockGameSemaphore() 
+{
+    sem_wait(&game);
+}
+
+// Débloque le sémaphore de jeu
+void unlockGameSemaphore() 
+{
+    sem_post(&game);
+}
+
+// Détruit le sémaphore de jeu
+void destroyGameSemaphore() 
+{
+    sem_destroy(&game);
+}
 
 
 // Initialise les sémaphores

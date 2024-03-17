@@ -40,6 +40,7 @@ void connectUser(pid_t pid)
         printf("--Connexion du processus %ld--\n", (long)pid);
         users[index].pid = pid;
         users[index].isConnected = 1;
+        users[index].hasAnswered = 0;
     }
 }
 
@@ -54,6 +55,7 @@ void disconnectUser(pid_t pid)
         users[index].score = 0;
         users[index].lastAnswer = '\0';
         users[index].isConnected = 0;
+        users[index].hasAnswered = 0;
     }
 }
 
@@ -87,5 +89,37 @@ void displayScores()
         {
             printf("Utilisateur %d : %c [score = %d]\n", users[i].pid, users[i].lastAnswer, users[i].score);
         }
+    }
+    printf("\n\n");
+}
+
+
+// Fonction qui gère s'il a répondu
+void Answered(pid_t pid)
+{
+    int index = getUserIndex(pid);
+    if(index != -1)
+    {
+        users[index].hasAnswered = 1;
+    }
+}
+
+// Fonction qui vérifie si l'utilisateur a répondu
+int hasAnswered(pid_t pid)
+{
+    int index = getUserIndex(pid);
+    if(index != -1)
+    {
+        return users[index].hasAnswered;
+    }
+    return 0;
+}
+
+// Fonction qui remet hasAnswered à 0 pour tous les utilisateurs
+void resetHasAnswered()
+{
+    for(int i = 0; i < MAX_USERS; i++)
+    {
+        users[i].hasAnswered = 0;
     }
 }

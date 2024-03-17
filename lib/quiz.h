@@ -1,7 +1,7 @@
 #ifndef QUIZ_H
 #define QUIZ_H
 
-#define MAX_QUESTIONS 10
+#define MAX_QUESTIONS 3
 #define MAX_CHOICES 4
 #define QUESTION_LEN 256
 #define CHOICE_LEN 50

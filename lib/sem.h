@@ -8,6 +8,10 @@ void lockUserSemaphore(int index);
 void unlockUserSemaphores();
 void destroyUserSemaphores();
 
+void initGameSemaphore();
+void lockGameSemaphore();
+void unlockGameSemaphore();
+void destroyGameSemaphore();
 
 
 
